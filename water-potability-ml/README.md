@@ -1,6 +1,6 @@
-# *Predicting Water Potability for Safe Drinking Access*
+# **Predicting Water Potability for Safe Drinking Access**
 
-## *Project Overview*
+## **Project Overview**
 
 Problem Statement: Over 2 billion people worldwide lack access to safe drinking water. This project builds an ML classification system to predict whether water is safe for human consumption based on chemical properties and quality measurements.
 

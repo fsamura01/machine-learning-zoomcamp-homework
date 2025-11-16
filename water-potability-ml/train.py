@@ -23,28 +23,19 @@ from xgboost import XGBClassifier
 
 C = 1.0
 
-# Data preparation
+# Load data
 df = pd.read_csv("data/water_potability.csv")
 df.columns = df.columns.str.lower()
-df
-
-#  Checking Class Imbalance
-print(df["potability"].value_counts())
-print(df["potability"].value_counts(normalize=True))
-
 
 # Imputation
 imputer = SimpleImputer(strategy="median")
-df_imputed = pd.DataFrame(
-    imputer.fit_transform(df.drop("potability", axis=1)),
-    columns=df.drop("potability", axis=1).columns,
-)
-df_imputed
+X_imputed = imputer.fit_transform(df.drop("potability", axis=1))
+feature_names = list(df.drop("potability", axis=1).columns)
 
+X = pd.DataFrame(X_imputed, columns=feature_names)
+y = df["potability"]
 
 # Data splitting
-X = df_imputed
-y = df["potability"]
 X_train, X_temp, y_train, y_temp = train_test_split(
     X, y, test_size=0.4, random_state=42, stratify=y
 )
@@ -74,11 +65,8 @@ for name, model in models.items():
     }
 
 
-# Apply SMOTE to balance classes
-smote = SMOTE(
-    random_state=42,
-    k_neighbors=5,
-)
+# Apply SMOTE
+smote = SMOTE(random_state=42, k_neighbors=5)
 X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
 
 models = {
@@ -91,7 +79,7 @@ models = {
     ),
 }
 
-
+# Train the model again
 results = {}
 for name, model in models.items():
     model.fit(X_train_balanced, y_train_balanced)
@@ -107,7 +95,7 @@ for name, model in models.items():
     }
 
 
-# Create XGBoost model with optimized parameters
+# Train XGBoost
 xgb_model = XGBClassifier(
     n_estimators=300,  # Number of boosting rounds
     max_depth=6,  # Maximum tree depth
@@ -124,52 +112,34 @@ xgb_model = XGBClassifier(
     eval_metric="logloss",  # Evaluation metric
 )
 
-# Train the model on validation dataset
 xgb_model.fit(
     X_train_balanced,
     y_train_balanced,
-    eval_set=[(X_val, y_val)],
-    verbose=False,
 )
 
-# Make predictions on the validation dataset
-y_pred_xgb = xgb_model.predict(X_val)
-y_proba_xgb = xgb_model.predict_proba(X_val)[:, 1]
+print("Training XGBoost model...")
+xgb_model.fit(X_train_balanced, y_train_balanced)
 
+# Evaluate
+y_pred = xgb_model.predict(X_test)
+print("\n" + "=" * 60)
+print("TEST SET PERFORMANCE:")
+print("=" * 60)
+print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
+print(f"F1-Score: {f1_score(y_test, y_pred):.4f}")
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred, target_names=["Non-Potable", "Potable"]))
 
-# Create XGBoost model with optimized parameters
-xgb_model = XGBClassifier(
-    n_estimators=300,  # Number of boosting rounds
-    max_depth=6,  # Maximum tree depth
-    learning_rate=0.1,  # Step size shrinkage (eta)
-    subsample=0.8,  # Fraction of samples used per tree
-    colsample_bytree=0.8,  # Fraction of features used per tree
-    scale_pos_weight=1.56,  # Handle class imbalance
-    gamma=0,  # Minimum loss reduction for split
-    min_child_weight=1,  # Minimum sum of instance weight in child
-    reg_alpha=0,  # L1 regularization
-    reg_lambda=1,  # L2 regularization
-    random_state=42,
-    n_jobs=-1,
-    eval_metric="logloss",  # Evaluation metric
-)
+# Save model with ALL artifacts
+model_artifacts = {
+    "model": xgb_model,
+    "imputer": imputer,
+    "feature_names": feature_names,
+}
 
-# Train the final model on the test dataset
-xgb_model.fit(
-    X_train_balanced,
-    y_train_balanced,
-    eval_set=[(X_test, y_test)],
-    verbose=False,  # Set to True to see training progress
-)
-
-# Make predictions on the test dataset
-y_pred_xgb = xgb_model.predict(X_test)
-# y_proba_xgb = xgb_model.predict_proba(X_test)[0, 1]
-
-
-# Saving the model to pickle
-output_file = "model_C=%s.bin" % C
-output_file
-
+output_file = "model_C=1.0.bin"
 with open(output_file, "wb") as f_out:
-    pickle.dump(xgb_model, f_out)
+    pickle.dump(model_artifacts, f_out)
+
+print(f"\n✅ Model saved to {output_file}")
+print(f"Model includes: XGBoost model, imputer, and feature names")
