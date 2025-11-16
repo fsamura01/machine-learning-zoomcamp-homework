@@ -1,38 +1,45 @@
 import pickle
-from typing import Any, Dict
 
 import pandas as pd
-import uvicorn
 from fastapi import FastAPI, HTTPException
-from sklearn.feature_extraction import DictVectorizer
 
 from schemas import PredictionResponse, WaterSample
 
-# Loading the model with Pickle
+# Load model artifacts
 model_file = "model_C=1.0.bin"
 
-dv = DictVectorizer(sparse=True)
+with open(model_file, "rb") as f_in:
+    artifacts = pickle.load(f_in)
+    model = artifacts["model"]
+    imputer = artifacts["imputer"]
+    feature_names = artifacts["feature_names"]
 
 app = FastAPI(title="Water Potability Prediction API")
 
 
-with open(model_file, "rb") as f_in:
-    model = pickle.load(f_in)
-
-
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "model_loaded": model is not None}
+    return {
+        "status": "healthy",
+        "model_loaded": model is not None,
+        "features": feature_names,
+    }
 
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict_potability(sample: WaterSample):
     try:
-        X = dv.fit_transform(sample.model_dump())
+        # Convert to DataFrame with correct column order
+        sample_dict = sample.model_dump()
+        df = pd.DataFrame([sample_dict])
+        df = df[feature_names]  # Ensure correct order
+
+        # Apply imputation (handles any missing values)
+        df_imputed = pd.DataFrame(imputer.transform(df), columns=feature_names)
 
         # Predict
-        prediction = model.predict(X)[0]
-        probability = model.predict_proba(X)[0]
+        prediction = model.predict(df_imputed)[0]
+        probability = model.predict_proba(df_imputed)[0]
 
         # Generate recommendation
         if prediction == 1:
@@ -50,13 +57,16 @@ def predict_potability(sample: WaterSample):
             "recommendation": recommendation,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
 @app.get("/")
 def root():
     return {
         "message": "Water Potability Prediction API",
+        "version": "1.0",
+        "model": "XGBoost",
+        "features": feature_names,
         "endpoints": {
             "/predict": "POST - Predict water potability",
             "/health": "GET - Health check",
@@ -66,4 +76,6 @@ def root():
 
 
 if __name__ == "__main__":
+    import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=9696)
