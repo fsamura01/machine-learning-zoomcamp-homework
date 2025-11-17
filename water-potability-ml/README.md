@@ -64,7 +64,7 @@ The AI doesn't replace laboratory testing but transforms it from a universal req
 
 #### **1. Machine Learning Framework**
 
-- **XGBoost 2.0+** - Primary classification algorithm
+- **XGBoost 3.0+** - Primary classification algorithm
   - Gradient boosting framework optimized for speed and performance
   - Handles missing data natively without preprocessing
   - Built-in regularization (L1/L2) to prevent overfitting
@@ -87,7 +87,7 @@ XGBClassifier(
 #### **2. Data Processing Libraries**
 
 - **Pandas 2.0+** - Data manipulation and CSV handling
-- **NumPy 1.24+** - Numerical computations and array operations
+- **NumPy 2.3+** - Numerical computations and array operations
 - **Scikit-learn 1.3+** - Data preprocessing pipeline
   - `SimpleImputer` with median strategy for handling missing values (~20% of dataset)
   - `StandardScaler` for feature normalization (considered but not used in final model)
@@ -202,12 +202,11 @@ FastAPI Serving
 **Docker Containerization Ready:**
 
 ```dockerfile
-FROM python:3.10-slim
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY model_C=1.0.bin .
-COPY serve.py .
-CMD ["uvicorn", "serve:app", "--host", "0.0.0.0", "--port", "9696"]
+FROM python:3.11.14-slim-bookworm
+COPY "pyproject.toml" "uv.lock" ".python-version" ./
+RUN uv sync --locked
+COPY "predict.py" "schemas.py" "model_C=1.0.bin" ./
+CMD ["uvicorn", "predict:app", "--host", "0.0.0.0", "--port", "9696"]
 ```
 
 This technology stack prioritizes **production-readiness**, **reproducibility**, and **ease of deployment** while maintaining state-of-the-art machine learning performance for water quality prediction.
