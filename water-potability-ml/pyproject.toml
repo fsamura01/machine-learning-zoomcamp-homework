@@ -1,0 +1,22 @@
+[project]
+name = "water-potability-ml"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.121.1",
+    "imblearn>=0.0",
+    "matplotlib>=3.10.7",
+    "numpy>=2.3.4",
+    "pandas>=2.3.3",
+    "scikit-learn>=1.7.2",
+    "seaborn>=0.13.2",
+    "uvicorn>=0.38.0",
+    "xgboost>=3.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "requests>=2.32.5",
+]
